@@ -7,28 +7,38 @@ import java.util.*;
 
 public class FutoshikiSolver {
 
-    static BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-    static BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(System.out));
+    static BufferedReader bufferedReader;
+    static BufferedWriter bufferedWriter;
     static StringBuilder stringBuilder = new StringBuilder();
+    static int breakPoint;
 
 
     public static void main(String[] args) throws IOException {
 
-        String inputPath = "";
+        String inputPath;
+        String outputPath;
         int heuristicType = 0;
 
         try {
             inputPath = args[0];
-            heuristicType = Integer.parseInt(args[1]);
+            outputPath = args[1];
+            heuristicType = Integer.parseInt(args[2]);
+            bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath)));
+            bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath)));
+
         } catch (Exception e) {
-            System.err.println("Please use: [0] inputPath, [1] heuristic type");
+            System.err.println("Please use: [0] inputPath, [1] heuristic type\n" + e.getMessage());
             System.exit(-1);
         }
 
 
+        double initialTime = System.currentTimeMillis();
+
         final int quantityOfTests = Integer.parseInt(bufferedReader.readLine());
 
         for (int i = 0; i < quantityOfTests; i++) {
+
+            breakPoint = 1;
 
             StringTokenizer stringTokenizer = new StringTokenizer(bufferedReader.readLine());
             final int dimension = Integer.parseInt(stringTokenizer.nextToken());
@@ -43,24 +53,27 @@ public class FutoshikiSolver {
                 }
             }
 
-            final int[][] initialBoard = new int[dimension][dimension];
+            final int[][] board = new int[dimension][dimension];
 
             for (int j = 0; j < dimension; j++) {
                 stringTokenizer = new StringTokenizer(bufferedReader.readLine());
                 for (int k = 0; k < dimension; k++) {
-                    initialBoard[j][k] = Integer.parseInt(stringTokenizer.nextToken());
+                    board[j][k] = Integer.parseInt(stringTokenizer.nextToken());
                 }
             }
 
+            stringBuilder.append(i + 1).append("\n");
+            printBoard(backtrackingSearch(heuristicType, board, constraints));
+            //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
 
-            stringBuilder.append(i).append("\n");
-            printBoard(backtrackingSearch(heuristicType, initialBoard, constraints));
 
             //Read break line after each test case, except the last of them
             if (i + 1 < quantityOfTests) {
                 bufferedReader.readLine();
             }
         }
+
+        stringBuilder.append("Total time: ").append((System.currentTimeMillis() - initialTime) / 1000);
 
         bufferedWriter.write(stringBuilder.toString());
         bufferedWriter.flush();
@@ -69,53 +82,54 @@ public class FutoshikiSolver {
 
 
     private static int[][] backtrackingSearch(final int heuristicType, int[][] board, int[][] constraints) {
-
-        return backtracking(board, constraints);
-
+        return recursiveBacktracking(board, constraints);
     }
 
-    private static int[][] backtracking(final int[][] board, final int[][] constraints) {
-        final Stack<int[][]> tree = new Stack<>();
 
-        tree.add(board);
+    private static int[][] recursiveBacktracking(int[][] board, int[][] constraints) {
 
-        while (!tree.isEmpty()) {
+        if (breakPoint++ > 1000000) return null;
 
-            final int[][] currentBoard = tree.pop();
+        if (isSolution(board, constraints)) {
+            return board;
+        }
 
-            if (isSolution(currentBoard, constraints)) {
-                return currentBoard;
+        final int[] variable = selectUnassignedVariable(board);
+
+        for (int i = board.length; i >= 1; i--) {
+
+            if (!checkValue(board, i, variable[0], variable[1])) continue;
+
+            board[variable[0]][variable[1]] = i;
+
+            if (!breakConstraint(board, constraints)) {
+
+                final int[][] result = recursiveBacktracking(board, constraints);
+
+                if (result != null) {
+                    return result;
+                }
             }
 
-            final ArrayList<int[][]> listOfChildren = getChildren(currentBoard, constraints);
-
-            for (final int[][] nextChildren : listOfChildren) {
-                tree.push(nextChildren);
-            }
+            board[variable[0]][variable[1]] = 0;
 
         }
 
         return null;
+
     }
 
 
     private static boolean isSolution(int[][] board, int[][] constraints) {
-
-        //possible number 0 >= x <= board.length
-        final boolean[][][] visited = new boolean[2][board.length][board.length + 1];
 
         for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board.length; j++) {
 
                 final int number = board[i][j];
 
-                if (visited[0][i][number] || visited[1][j][number] || number == 0) {
+                if (number == 0) {
                     return false;
                 }
-
-                visited[0][i][number] = true;
-                visited[1][j][number] = true;
-
             }
         }
 
@@ -153,103 +167,30 @@ public class FutoshikiSolver {
 
     }
 
-    private static ArrayList<int[][]> getChildren01(final int[][] board, final int[][] constraints) {
-
-        ArrayList<int[][]> listOfChildren = new ArrayList<>();
-
-        final boolean[][][] visited = new boolean[2][board.length][board.length + 1];
-
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
-                final int number = board[i][j];
-
-                visited[0][i][number] = true;
-                visited[1][j][number] = true;
-            }
-        }
-
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
-                for (int k = 1; k <= board.length; k++) {
-                    if (board[i][j] == 0) {
-                        if (!visited[0][i][k] && !visited[1][j][k]) {
-                            final int[][] boardClone = cloneBoard(board);
-                            boardClone[i][j] = k;
-                            if (!breakConstraint(boardClone, constraints)) {
-                                listOfChildren.add(boardClone);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return listOfChildren;
-    }
-
-    /**
-     * getChildren search the next empty space and return all the possibilities for fill that space,
-     * following the constraints.
-     *
-     * @param board       The board to be analysed
-     * @param constraints The constraints of the problem
-     * @return a list containing the possibilities for fill the next empty space
-     */
-    private static ArrayList<int[][]> getChildren(final int[][] board, final int[][] constraints) {
-
-        ArrayList<int[][]> listOfChildren = new ArrayList<>();
-
-        final boolean[][][] visited = new boolean[2][board.length][board.length + 1];
-
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
-                final int number = board[i][j];
-
-                visited[0][i][number] = true;
-                visited[1][j][number] = true;
-            }
-        }
+    private static int[] selectUnassignedVariable(int[][] board) {
 
         for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board.length; j++) {
                 if (board[i][j] == 0) {
-                    for (int k = 1; k <= board.length; k++) {
-                        if (!visited[0][i][k] && !visited[1][j][k]) {
-                            final int[][] boardClone = cloneBoard(board);
-                            boardClone[i][j] = k;
-                            if (!breakConstraint(boardClone, constraints)) {
-                                listOfChildren.add(boardClone);
-                            }
-                        }
-                    }
-                    break;
+                    return new int[]{i, j};
                 }
             }
         }
 
-        return listOfChildren;
+        return new int[]{};
     }
 
-    private static int[][] cloneBoard(final int[][] board) {
 
-        int[][] newBoard = new int[board.length][board.length];
+    private static boolean checkValue(int[][] board, int value, int l, int c) {
 
         for (int i = 0; i < board.length; i++) {
-            newBoard[i] = Arrays.copyOf(board[i], board[i].length);
-        }
-
-        return newBoard;
-    }
-
-    private static String boardToString(final int[][] board) {
-        String s = "";
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
-                s += board[i][j];
+            if (board[l][i] == value || board[i][c] == value) {
+                return false;
             }
         }
 
-        return s;
+        return true;
+
     }
 
 }
