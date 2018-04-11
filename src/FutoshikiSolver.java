@@ -25,7 +25,6 @@ public class FutoshikiSolver {
             heuristicType = Integer.parseInt(args[2]);
             bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath)));
             bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath)));
-
         } catch (Exception e) {
             System.err.println("Please use: [0] inputPath, [1] heuristic type\n" + e.getMessage());
             System.exit(-1);
@@ -64,6 +63,7 @@ public class FutoshikiSolver {
 
             stringBuilder.append(i + 1).append("\n");
             printBoard(backtrackingSearch(heuristicType, board, constraints));
+            //System.out.println(breakPoint);
             //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
 
 
@@ -88,27 +88,29 @@ public class FutoshikiSolver {
 
     private static int[][] recursiveBacktracking(int[][] board, int[][] constraints, int heuristicType) {
 
-        if (breakPoint++ > 1000000) return null;
+        if (breakPoint++ > 1000000) {
+            return null;
+        }
 
         if (isSolution(board)) {
             return board;
         }
 
-        final int[] variable = selectUnassignedVariable(board);
-        final ArrayList<Integer> orderDomainValues = getOrderDomainValues(board, constraints, variable, heuristicType);
+        final Object[] variableAndOrderDomainValues = getVariableAndOrderDomainValues(board, constraints, heuristicType);
+
+        final int line = (int) variableAndOrderDomainValues[0];
+        final int column = (int) variableAndOrderDomainValues[1];
+        final ArrayList<Integer> orderDomainValues = (ArrayList<Integer>) variableAndOrderDomainValues[2];
 
         for (final int value : orderDomainValues) {
+            board[line][column] = value;
+            final int[][] result = recursiveBacktracking(board, constraints, heuristicType);
 
-            board[variable[0]][variable[1]] = value;
-
-            if (!breakConstraint(board, constraints)) {
-                final int[][] result = recursiveBacktracking(board, constraints, heuristicType);
-
-                if (result != null) {
-                    return result;
-                }
+            if (result != null) {
+                return result;
             }
 
+            board[line][column] = 0;
         }
 
         return null;
@@ -116,6 +118,12 @@ public class FutoshikiSolver {
     }
 
 
+    /**
+     * This method will compare if the board has any empty space or if is complete.
+     *
+     * @param board A board with the possible solution
+     * @return true case the board is complete or false otherwise
+     */
     private static boolean isSolution(int[][] board) {
 
         for (int i = 0; i < board.length; i++) {
@@ -163,51 +171,92 @@ public class FutoshikiSolver {
 
     }
 
-    private static int[] selectUnassignedVariable(int[][] board) {
-
+    private static void simpleUnassignedVariable(int[][] board, Object[] result) {
         for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board.length; j++) {
                 if (board[i][j] == 0) {
-                    return new int[]{i, j};
+                    result[0] = i;
+                    result[1] = j;
+                    return;
                 }
             }
         }
-
-        return null;
     }
 
+    private static void mrvHeuristic(int[][] board, int[][] constraints, Object[] result) {
+        int minValidValues = Integer.MAX_VALUE;
 
-    private static ArrayList<Integer> getOrderDomainValues(int[][] board, int[][] constraints, int[] variable, int heuristicType) {
-        switch (heuristicType) {
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board.length; j++) {
 
-            case 0:
-                return simpleDomainValues(board, variable);
-            default:
-                return null;
+                if (board[i][j] == 0) {
 
+                    final ArrayList<Integer> listOfValidValues = new ArrayList<>();
+
+                    for (int value = 1; value <= board.length; value++) {
+                        if (isValidValue(board, value, i, j, constraints)) {
+                            listOfValidValues.add(value);
+                        }
+                    }
+
+                    if (listOfValidValues.size() < minValidValues) {
+                        minValidValues = listOfValidValues.size();
+                        result[0] = i;
+                        result[1] = j;
+                        result[2] = listOfValidValues;
+                    }
+                }
+
+            }
         }
     }
 
-    private static ArrayList<Integer> simpleDomainValues(int[][] board, int[] variable) {
+    private static Object[] getVariableAndOrderDomainValues(int[][] board, int[][] constraints, int heuristicType) {
+
+        Object[] result = new Object[3];
+
+        switch (heuristicType) {
+            case 0:
+                simpleUnassignedVariable(board, result);
+                simpleDomainValues(board, constraints, result);
+                break;
+            case 1:
+                mrvHeuristic(board, constraints, result);
+                break;
+        }
+
+        return result;
+    }
+
+    private static void simpleDomainValues(int[][] board, int[][] constraints, Object[] result) {
         final ArrayList<Integer> listOfValidValues = new ArrayList<>();
 
+        int line = (int) result[0];
+        int column = (int) result[1];
+
         for (int value = board.length; value >= 1; value--) {
-            if (!checkValue(board, value, variable[0], variable[1])) continue;
-            listOfValidValues.add(value);
+            if (isValidValue(board, value, line, column, constraints)) {
+                listOfValidValues.add(value);
+            }
         }
 
-        return listOfValidValues;
+        result[2] = listOfValidValues;
     }
 
-
-    private static boolean checkValue(final int[][] board, final int value, final int line, final int column) {
+    private static boolean isValidValue(final int[][] board, final int value, final int line, final int column, int[][] constraints) {
         for (int i = 0; i < board.length; i++) {
             if (board[line][i] == value || board[i][column] == value) {
                 return false;
             }
         }
 
+        board[line][column] = value;
+        if (breakConstraint(board, constraints)) {
+            board[line][column] = 0;
+            return false;
+        }
+        board[line][column] = 0;
+
         return true;
     }
-
 }
