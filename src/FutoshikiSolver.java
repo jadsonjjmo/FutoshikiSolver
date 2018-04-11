@@ -7,16 +7,16 @@ import java.util.*;
 
 public class FutoshikiSolver {
 
-    static BufferedReader bufferedReader;
-    static BufferedWriter bufferedWriter;
-    static StringBuilder stringBuilder = new StringBuilder();
-    static int breakPoint;
+    private static BufferedReader bufferedReader;
+    private static BufferedWriter bufferedWriter;
+    private static int breakPoint;
+    private final static StringBuilder stringBuilder = new StringBuilder();
 
 
     public static void main(String[] args) throws IOException {
 
-        String inputPath;
-        String outputPath;
+        final String inputPath;
+        final String outputPath;
         int heuristicType = 0;
 
         try {
@@ -82,36 +82,32 @@ public class FutoshikiSolver {
 
 
     private static int[][] backtrackingSearch(final int heuristicType, int[][] board, int[][] constraints) {
-        return recursiveBacktracking(board, constraints);
+        return recursiveBacktracking(board, constraints, heuristicType);
     }
 
 
-    private static int[][] recursiveBacktracking(int[][] board, int[][] constraints) {
+    private static int[][] recursiveBacktracking(int[][] board, int[][] constraints, int heuristicType) {
 
         if (breakPoint++ > 1000000) return null;
 
-        if (isSolution(board, constraints)) {
+        if (isSolution(board)) {
             return board;
         }
 
         final int[] variable = selectUnassignedVariable(board);
+        final ArrayList<Integer> orderDomainValues = getOrderDomainValues(board, constraints, variable, heuristicType);
 
-        for (int i = board.length; i >= 1; i--) {
+        for (final int value : orderDomainValues) {
 
-            if (!checkValue(board, i, variable[0], variable[1])) continue;
-
-            board[variable[0]][variable[1]] = i;
+            board[variable[0]][variable[1]] = value;
 
             if (!breakConstraint(board, constraints)) {
-
-                final int[][] result = recursiveBacktracking(board, constraints);
+                final int[][] result = recursiveBacktracking(board, constraints, heuristicType);
 
                 if (result != null) {
                     return result;
                 }
             }
-
-            board[variable[0]][variable[1]] = 0;
 
         }
 
@@ -120,7 +116,7 @@ public class FutoshikiSolver {
     }
 
 
-    private static boolean isSolution(int[][] board, int[][] constraints) {
+    private static boolean isSolution(int[][] board) {
 
         for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board.length; j++) {
@@ -177,20 +173,41 @@ public class FutoshikiSolver {
             }
         }
 
-        return new int[]{};
+        return null;
     }
 
 
-    private static boolean checkValue(int[][] board, int value, int l, int c) {
+    private static ArrayList<Integer> getOrderDomainValues(int[][] board, int[][] constraints, int[] variable, int heuristicType) {
+        switch (heuristicType) {
 
+            case 0:
+                return simpleDomainValues(board, variable);
+            default:
+                return null;
+
+        }
+    }
+
+    private static ArrayList<Integer> simpleDomainValues(int[][] board, int[] variable) {
+        final ArrayList<Integer> listOfValidValues = new ArrayList<>();
+
+        for (int value = board.length; value >= 1; value--) {
+            if (!checkValue(board, value, variable[0], variable[1])) continue;
+            listOfValidValues.add(value);
+        }
+
+        return listOfValidValues;
+    }
+
+
+    private static boolean checkValue(final int[][] board, final int value, final int line, final int column) {
         for (int i = 0; i < board.length; i++) {
-            if (board[l][i] == value || board[i][c] == value) {
+            if (board[line][i] == value || board[i][column] == value) {
                 return false;
             }
         }
 
         return true;
-
     }
 
 }
