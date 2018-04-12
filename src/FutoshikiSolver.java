@@ -10,6 +10,7 @@ public class FutoshikiSolver {
     private static BufferedReader bufferedReader;
     private static BufferedWriter bufferedWriter;
     private static int breakPoint;
+    private static int dimension;
     private final static StringBuilder stringBuilder = new StringBuilder();
 
 
@@ -40,10 +41,11 @@ public class FutoshikiSolver {
             breakPoint = 1;
 
             StringTokenizer stringTokenizer = new StringTokenizer(bufferedReader.readLine());
-            final int dimension = Integer.parseInt(stringTokenizer.nextToken());
+            dimension = Integer.parseInt(stringTokenizer.nextToken());
             final int quantityOfConstraints = Integer.parseInt(stringTokenizer.nextToken());
 
             final int[][] constraints = new int[quantityOfConstraints][4];
+            final int[][] board = new int[dimension + 2][dimension];
 
             for (int j = 0; j < quantityOfConstraints; j++) {
                 stringTokenizer = new StringTokenizer(bufferedReader.readLine());
@@ -52,18 +54,25 @@ public class FutoshikiSolver {
                 }
             }
 
-            final int[][] board = new int[dimension][dimension];
-
             for (int j = 0; j < dimension; j++) {
                 stringTokenizer = new StringTokenizer(bufferedReader.readLine());
                 for (int k = 0; k < dimension; k++) {
-                    board[j][k] = Integer.parseInt(stringTokenizer.nextToken());
+                    final int value = Integer.parseInt(stringTokenizer.nextToken());
+                    board[j][k] = value;
+
+                    if (value > 0) {
+                        //Set the value as used in column and row
+                        //dimension = row
+                        board[dimension][j] |= (1 << value);
+                        //dimension + 1 = column
+                        board[dimension + 1][k] |= (1 << value);
+                    }
                 }
             }
 
             stringBuilder.append(i + 1).append("\n");
             printBoard(backtrackingSearch(heuristicType, board, constraints));
-            System.out.println(breakPoint);
+            //System.out.println(breakPoint);
             //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
 
 
@@ -98,19 +107,30 @@ public class FutoshikiSolver {
 
         final Object[] variableAndOrderDomainValues = getVariableAndOrderDomainValues(board, constraints, heuristicType);
 
-        final int line = (int) variableAndOrderDomainValues[0];
+        final int row = (int) variableAndOrderDomainValues[0];
         final int column = (int) variableAndOrderDomainValues[1];
         final ArrayList<Integer> orderDomainValues = (ArrayList<Integer>) variableAndOrderDomainValues[2];
 
         for (final int value : orderDomainValues) {
-            board[line][column] = value;
+            board[row][column] = value;
+            //Set the value as used in column and row
+            //dimension = row
+            board[dimension][row] |= (1 << value);
+            //dimension + 1 = column
+            board[dimension + 1][column] |= (1 << value);
             final int[][] result = recursiveBacktracking(board, constraints, heuristicType);
 
             if (result != null) {
                 return result;
             }
 
-            board[line][column] = 0;
+            //Set the value as used in column and row
+            //dimension = row
+            board[dimension][row] ^= (1 << value);
+            //dimension + 1 = column
+            board[dimension + 1][column] ^= (1 << value);
+
+            board[row][column] = 0;
         }
 
         return null;
@@ -126,8 +146,8 @@ public class FutoshikiSolver {
      */
     private static boolean isSolution(int[][] board) {
 
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
 
                 final int number = board[i][j];
 
@@ -157,10 +177,10 @@ public class FutoshikiSolver {
         if (board == null) {
             stringBuilder.append("No solution found!\n");
         } else {
-            for (int i = 0; i < board.length; i++) {
-                for (int j = 0; j < board.length; j++) {
+            for (int i = 0; i < dimension; i++) {
+                for (int j = 0; j < dimension; j++) {
                     stringBuilder.append(board[i][j]);
-                    if (j + 1 < board.length) {
+                    if (j + 1 < dimension) {
                         stringBuilder.append(" ");
                     } else {
                         stringBuilder.append("\n");
@@ -172,8 +192,8 @@ public class FutoshikiSolver {
     }
 
     private static void simpleUnassignedVariable(int[][] board, Object[] result) {
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
                 if (board[i][j] == 0) {
                     result[0] = i;
                     result[1] = j;
@@ -185,23 +205,16 @@ public class FutoshikiSolver {
 
     private static boolean forwardChecking(int[][] board, int[][] constraints, Object[] result) {
 
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
 
                 if (board[i][j] == 0) {
 
-                    int validValues = 0;
-
-                    for (int value = 1; value <= board.length; value++) {
-                        if (isValidValue(board, value, i, j, constraints)) {
-                            validValues++;
-                        }
-                    }
-
-                    if (validValues == 0) {
+                    if ((board[dimension][i] | board[dimension + 1][j]) == (1 << dimension + 1) - 1) {
                         result[2] = new ArrayList<>();
                         return false;
                     }
+
                 }
 
             }
@@ -212,35 +225,65 @@ public class FutoshikiSolver {
 
     private static void mrvForwardChecking(int[][] board, int[][] constraints, Object[] result) {
         int minValidValues = Integer.MAX_VALUE;
-        int maxRestrictValues = Integer.MAX_VALUE;
 
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board.length; j++) {
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
 
                 if (board[i][j] == 0) {
-
-                    int validValues = 0;
-                    int restrictValues = 0;
-
-                    for (int value = 1; value <= board.length; value++) {
-                        if (isSingleValue(board, value, i, j, constraints)) {
-                            validValues++;
-                        }
-                        board[i][j] = value;
-                        if (breakConstraint(board, constraints)) {
-                            restrictValues++;
-                        }
-                        board[i][j] = 0;
-                    }
-
-                    if (validValues < minValidValues || (validValues == minValidValues && maxRestrictValues < restrictValues)) {
-                        minValidValues = validValues;
-                        maxRestrictValues = restrictValues;
+                    //Forward checking
+                    if ((board[dimension][i] | board[dimension + 1][j]) == ((1 << dimension + 1) - 1)) {
                         result[0] = i;
                         result[1] = j;
-                        //Forward checking
-                        if (minValidValues == 0) {
+                        result[2] = new ArrayList<>();
+                        return;
+                    }
+
+                    final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
+
+                    if (validValues < minValidValues) {
+                        minValidValues = validValues;
+                        result[0] = i;
+                        result[1] = j;
+                        if (minValidValues == 1) {
                             return;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    private static void mrvForwardCheckingDegree(int[][] board, int[][] constraints, Object[] result) {
+        int minValidValues = Integer.MAX_VALUE;
+        int maxDegree = 0;
+
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
+
+                if (board[i][j] == 0) {
+                    //Forward checking
+                    if ((board[dimension][i] | board[dimension + 1][j]) == ((1 << dimension + 1) - 1)) {
+                        result[0] = i;
+                        result[1] = j;
+                        result[2] = new ArrayList<>();
+                        return;
+                    }
+
+                    final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
+
+                    if (validValues < minValidValues) {
+                        minValidValues = validValues;
+                        maxDegree = getDegree(board, constraints, i, j);
+                        result[0] = i;
+                        result[1] = j;
+                    } else if (validValues == minValidValues) {
+                        int currentDegree = getDegree(board, constraints, i, j);
+                        if (currentDegree > maxDegree) {
+                            minValidValues = validValues;
+                            maxDegree = currentDegree;
+                            result[0] = i;
+                            result[1] = j;
                         }
                     }
                 }
@@ -276,43 +319,56 @@ public class FutoshikiSolver {
     private static void simpleDomainValues(int[][] board, int[][] constraints, Object[] result) {
         final ArrayList<Integer> listOfValidValues = new ArrayList<>();
 
-        int line = (int) result[0];
+        int row = (int) result[0];
         int column = (int) result[1];
 
-        for (int value = board.length; value >= 1; value--) {
-            if (isValidValue(board, value, line, column, constraints)) {
-                listOfValidValues.add(value);
+        int validValues = board[dimension][row] | board[dimension + 1][column];
+
+        for (int value = dimension; value >= 1; value--) {
+            if (((1 << value) | validValues) != validValues) {
+                board[row][column] = value;
+                if (!breakConstraint(board, constraints)) {
+                    listOfValidValues.add(value);
+                }
+                board[row][column] = 0;
             }
         }
 
         result[2] = listOfValidValues;
     }
 
-    private static boolean isValidValue(final int[][] board, final int value, final int line, final int column, int[][] constraints) {
-        for (int i = 0; i < board.length; i++) {
-            if (board[line][i] == value || board[i][column] == value) {
-                return false;
+
+    private static int getDegree(final int[][] board, int[][] constraints, int row, int column) {
+        int validValues = board[dimension][row] | board[dimension + 1][column];
+        int breakConstraint = 0;
+
+        for (int value = dimension; value >= 1; value--) {
+            if (((1 << value) | validValues) != validValues) {
+                board[row][column] = value;
+                if (breakConstraint(board, constraints)) {
+                    breakConstraint++;
+                }
+                board[row][column] = 0;
             }
         }
 
-        board[line][column] = value;
-        if (breakConstraint(board, constraints)) {
-            board[line][column] = 0;
-            return false;
-        }
-        board[line][column] = 0;
-
-        return true;
+        return breakConstraint;
     }
 
-    private static boolean isSingleValue(final int[][] board, final int value, final int line, final int column, int[][] constraints) {
-        for (int i = 0; i < board.length; i++) {
-            if (board[line][i] == value || board[i][column] == value) {
-                return false;
+
+    private static int getValidValues(int n) {
+        //remove the first bit, because it always be zero
+        int count = 0;
+
+        while (n > 0) {
+            if (n % 2 != 0) {
+                count++;
             }
+            n /= 2;
         }
 
-        return true;
+        return dimension - count;
     }
+
 
 }
