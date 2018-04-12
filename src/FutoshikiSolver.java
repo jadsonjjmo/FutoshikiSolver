@@ -63,7 +63,7 @@ public class FutoshikiSolver {
 
             stringBuilder.append(i + 1).append("\n");
             printBoard(backtrackingSearch(heuristicType, board, constraints));
-            //System.out.println(breakPoint);
+            System.out.println(breakPoint);
             //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
 
 
@@ -88,7 +88,7 @@ public class FutoshikiSolver {
 
     private static int[][] recursiveBacktracking(int[][] board, int[][] constraints, int heuristicType) {
 
-        if (breakPoint++ > 1000000) {
+        if (breakPoint++ > 1e6) {
             return null;
         }
 
@@ -183,27 +183,65 @@ public class FutoshikiSolver {
         }
     }
 
-    private static void mrvHeuristic(int[][] board, int[][] constraints, Object[] result) {
-        int minValidValues = Integer.MAX_VALUE;
+    private static boolean forwardChecking(int[][] board, int[][] constraints, Object[] result) {
 
         for (int i = 0; i < board.length; i++) {
             for (int j = 0; j < board.length; j++) {
 
                 if (board[i][j] == 0) {
 
-                    final ArrayList<Integer> listOfValidValues = new ArrayList<>();
+                    int validValues = 0;
 
                     for (int value = 1; value <= board.length; value++) {
                         if (isValidValue(board, value, i, j, constraints)) {
-                            listOfValidValues.add(value);
+                            validValues++;
                         }
                     }
 
-                    if (listOfValidValues.size() < minValidValues) {
-                        minValidValues = listOfValidValues.size();
+                    if (validValues == 0) {
+                        result[2] = new ArrayList<>();
+                        return false;
+                    }
+                }
+
+            }
+        }
+
+        return true;
+    }
+
+    private static void mrvForwardChecking(int[][] board, int[][] constraints, Object[] result) {
+        int minValidValues = Integer.MAX_VALUE;
+        int maxRestrictValues = Integer.MAX_VALUE;
+
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board.length; j++) {
+
+                if (board[i][j] == 0) {
+
+                    int validValues = 0;
+                    int restrictValues = 0;
+
+                    for (int value = 1; value <= board.length; value++) {
+                        if (isSingleValue(board, value, i, j, constraints)) {
+                            validValues++;
+                        }
+                        board[i][j] = value;
+                        if (breakConstraint(board, constraints)) {
+                            restrictValues++;
+                        }
+                        board[i][j] = 0;
+                    }
+
+                    if (validValues < minValidValues || (validValues == minValidValues && maxRestrictValues < restrictValues)) {
+                        minValidValues = validValues;
+                        maxRestrictValues = restrictValues;
                         result[0] = i;
                         result[1] = j;
-                        result[2] = listOfValidValues;
+                        //Forward checking
+                        if (minValidValues == 0) {
+                            return;
+                        }
                     }
                 }
 
@@ -221,7 +259,14 @@ public class FutoshikiSolver {
                 simpleDomainValues(board, constraints, result);
                 break;
             case 1:
-                mrvHeuristic(board, constraints, result);
+                simpleUnassignedVariable(board, result);
+                if (forwardChecking(board, constraints, result)) {
+                    simpleDomainValues(board, constraints, result);
+                }
+                break;
+            case 2:
+                mrvForwardChecking(board, constraints, result);
+                simpleDomainValues(board, constraints, result);
                 break;
         }
 
@@ -259,4 +304,15 @@ public class FutoshikiSolver {
 
         return true;
     }
+
+    private static boolean isSingleValue(final int[][] board, final int value, final int line, final int column, int[][] constraints) {
+        for (int i = 0; i < board.length; i++) {
+            if (board[line][i] == value || board[i][column] == value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 }
