@@ -7,51 +7,63 @@ import java.util.*;
 
 public class FutoshikiSolver {
 
+    private final static StringBuilder stringBuilder = new StringBuilder();
+    private static HashMap<String, List<String>> constraints;
     private static BufferedReader bufferedReader;
     private static BufferedWriter bufferedWriter;
     private static int breakPoint;
     private static int dimension;
-    private final static StringBuilder stringBuilder = new StringBuilder();
-
 
     public static void main(String[] args) throws IOException {
 
         final String inputPath;
         final String outputPath;
         int heuristicType = 0;
+        boolean getSolution = true;
 
         try {
             inputPath = args[0];
             outputPath = args[1];
             heuristicType = Integer.parseInt(args[2]);
+            getSolution = Boolean.parseBoolean(args[3]);
             bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(inputPath)));
             bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputPath)));
         } catch (Exception e) {
-            System.err.println("Please use: [0] inputPath, [1] heuristic type\n" + e.getMessage());
+            System.err.println("Please use: [0] inputPath, [1] outputPath, [2] heuristic type, [3] getSolution\n" + e.getMessage());
             System.exit(-1);
         }
 
+        stringBuilder.append("test,dimension,constraints,operations,solutionFound,second");
 
-        double initialTime = System.currentTimeMillis();
 
         final int quantityOfTests = Integer.parseInt(bufferedReader.readLine());
 
         for (int i = 0; i < quantityOfTests; i++) {
 
+            double totalTime = 0;
+            int iterations = 5;
             breakPoint = 1;
 
             StringTokenizer stringTokenizer = new StringTokenizer(bufferedReader.readLine());
             dimension = Integer.parseInt(stringTokenizer.nextToken());
             final int quantityOfConstraints = Integer.parseInt(stringTokenizer.nextToken());
 
-            final int[][] constraints = new int[quantityOfConstraints][4];
+            constraints = new HashMap<>();
             final int[][] board = new int[dimension + 2][dimension];
 
             for (int j = 0; j < quantityOfConstraints; j++) {
                 stringTokenizer = new StringTokenizer(bufferedReader.readLine());
-                for (int k = 0; k < 4; k++) {
-                    constraints[j][k] = Integer.parseInt(stringTokenizer.nextToken()) - 1;
-                }
+                final String l1 = stringTokenizer.nextToken();
+                final String c1 = stringTokenizer.nextToken();
+                final String l2 = stringTokenizer.nextToken();
+                final String c2 = stringTokenizer.nextToken();
+
+                final List<String> list1 = constraints.getOrDefault(l1 + c1, new ArrayList<>());
+                final List<String> list2 = constraints.getOrDefault(l2 + c2, new ArrayList<>());
+                list1.add('<' + l2 + c2);
+                list2.add('>' + l1 + c1);
+                constraints.put(l1 + c1, list1);
+                constraints.put(l2 + c2, list2);
             }
 
             for (int j = 0; j < dimension; j++) {
@@ -70,19 +82,49 @@ public class FutoshikiSolver {
                 }
             }
 
+
             stringBuilder.append(i + 1).append("\n");
-            printBoard(backtrackingSearch(heuristicType, board, constraints));
-            //System.out.println(breakPoint);
-            //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
+
+            int result[][] = null;
+
+            for (int h = 0; h <= 3; h++) {
+
+                heuristicType = h;
+
+                while (iterations-- > 0) {
+
+                    final int tempBoard[][] = new int[dimension + 2][dimension];
+
+                    for (int q = 0; q < dimension + 2; q++) {
+                        System.arraycopy(board[q], 0, tempBoard[q], 0, dimension);
+                    }
+
+                    final double initialTime = System.currentTimeMillis();
+
+                    result = backtrackingSearch(heuristicType, tempBoard);
+
+                    if (getSolution) {
+                        printBoard(result);
+                    }
+                    //printBoard(backtrackingSearch(heuristicType, board));
+                    //System.out.println(breakPoint);
+                    //System.out.println((System.currentTimeMillis() - initialTime) / 1000);
 
 
-            //Read break line after each test case, except the last of them
+                    //Read break line after each test case, except the last of them
+                    final double endTime = System.currentTimeMillis();
+                    totalTime += (endTime - initialTime);
+                }
+
+                stringBuilder.append(i + 1).append(",").append(dimension).append(",")
+                        .append(quantityOfConstraints).append(",").append(breakPoint)
+                        .append(totalTime / iterations).append(",").append(result != null);
+
+            }
             if (i + 1 < quantityOfTests) {
                 bufferedReader.readLine();
             }
         }
-
-        stringBuilder.append("Total time: ").append((System.currentTimeMillis() - initialTime) / 1000);
 
         bufferedWriter.write(stringBuilder.toString());
         bufferedWriter.flush();
@@ -90,12 +132,12 @@ public class FutoshikiSolver {
     }
 
 
-    private static int[][] backtrackingSearch(final int heuristicType, int[][] board, int[][] constraints) {
-        return recursiveBacktracking(board, constraints, heuristicType);
+    private static int[][] backtrackingSearch(final int heuristicType, int[][] board) {
+        return recursiveBacktracking(board, heuristicType);
     }
 
 
-    private static int[][] recursiveBacktracking(int[][] board, int[][] constraints, int heuristicType) {
+    private static int[][] recursiveBacktracking(int[][] board, int heuristicType) {
 
         if (breakPoint++ > 1e6) {
             return null;
@@ -105,7 +147,7 @@ public class FutoshikiSolver {
             return board;
         }
 
-        final Object[] variableAndOrderDomainValues = getVariableAndOrderDomainValues(board, constraints, heuristicType);
+        final Object[] variableAndOrderDomainValues = getVariableAndOrderDomainValues(board, heuristicType);
 
         final int row = (int) variableAndOrderDomainValues[0];
         final int column = (int) variableAndOrderDomainValues[1];
@@ -113,21 +155,17 @@ public class FutoshikiSolver {
 
         for (final int value : orderDomainValues) {
             board[row][column] = value;
-            //Set the value as used in column and row
-            //dimension = row
+            //Set the bit represented by value as used in column and row
             board[dimension][row] |= (1 << value);
-            //dimension + 1 = column
             board[dimension + 1][column] |= (1 << value);
-            final int[][] result = recursiveBacktracking(board, constraints, heuristicType);
+            final int[][] result = recursiveBacktracking(board, heuristicType);
 
             if (result != null) {
                 return result;
             }
 
-            //Set the value as used in column and row
-            //dimension = row
+            //Unset the bit represented by value as used in column and row
             board[dimension][row] ^= (1 << value);
-            //dimension + 1 = column
             board[dimension + 1][column] ^= (1 << value);
 
             board[row][column] = 0;
@@ -160,12 +198,23 @@ public class FutoshikiSolver {
         return true;
     }
 
-    private static boolean breakConstraint(int[][] board, int[][] constraints) {
+    private static boolean breakConstraint(int[][] board, int row, int column, int value) {
 
-        for (int i = 0; i < constraints.length; i++) {
-            if (board[constraints[i][0]][constraints[i][1]] >= board[constraints[i][2]][constraints[i][3]] &&
-                    (board[constraints[i][0]][constraints[i][1]] != 0 && board[constraints[i][2]][constraints[i][3]] != 0)) {
-                return true;
+        final List<String> listOfConstraints = constraints.get((row + 1) + "" + (column + 1));
+
+        if (listOfConstraints != null) {
+            for (final String constraint : listOfConstraints) {
+                final char operator = constraint.charAt(0);
+                final int row2 = Character.getNumericValue(constraint.charAt(1)) - 1;
+                final int column2 = Character.getNumericValue(constraint.charAt(2)) - 1;
+                final int value2 = board[row2][column2];
+
+                if (operator == '<' && (value2 != 0 && value2 < value)) {
+                    return true;
+                } else if (operator == '>' && (value2 != 0 && value2 > value)) {
+                    return true;
+                }
+
             }
         }
 
@@ -203,7 +252,7 @@ public class FutoshikiSolver {
         }
     }
 
-    private static boolean forwardChecking(int[][] board, int[][] constraints, Object[] result) {
+    private static boolean forwardChecking(int[][] board, Object[] result) {
 
         for (int i = 0; i < dimension; i++) {
             for (int j = 0; j < dimension; j++) {
@@ -223,7 +272,7 @@ public class FutoshikiSolver {
         return true;
     }
 
-    private static void mrvForwardChecking(int[][] board, int[][] constraints, Object[] result) {
+    private static void mrvForwardChecking(int[][] board, Object[] result) {
         int minValidValues = Integer.MAX_VALUE;
 
         for (int i = 0; i < dimension; i++) {
@@ -254,7 +303,7 @@ public class FutoshikiSolver {
         }
     }
 
-    private static void mrvForwardCheckingDegree(int[][] board, int[][] constraints, Object[] result) {
+    private static void mrvForwardCheckingDegree(int[][] board, Object[] result) {
         int minValidValues = Integer.MAX_VALUE;
         int maxDegree = 0;
 
@@ -274,11 +323,11 @@ public class FutoshikiSolver {
 
                     if (validValues < minValidValues) {
                         minValidValues = validValues;
-                        maxDegree = getDegree(board, constraints, i, j);
+                        maxDegree = getDegree(board, i, j);
                         result[0] = i;
                         result[1] = j;
                     } else if (validValues == minValidValues) {
-                        int currentDegree = getDegree(board, constraints, i, j);
+                        final int currentDegree = getDegree(board, i, j);
                         if (currentDegree > maxDegree) {
                             minValidValues = validValues;
                             maxDegree = currentDegree;
@@ -292,31 +341,33 @@ public class FutoshikiSolver {
         }
     }
 
-    private static Object[] getVariableAndOrderDomainValues(int[][] board, int[][] constraints, int heuristicType) {
+    private static Object[] getVariableAndOrderDomainValues(int[][] board, int heuristicType) {
 
-        Object[] result = new Object[3];
+        final Object[] result = new Object[3];
 
         switch (heuristicType) {
             case 0:
                 simpleUnassignedVariable(board, result);
-                simpleDomainValues(board, constraints, result);
+                simpleDomainValues(board, result);
                 break;
             case 1:
                 simpleUnassignedVariable(board, result);
-                if (forwardChecking(board, constraints, result)) {
-                    simpleDomainValues(board, constraints, result);
+                if (forwardChecking(board, result)) {
+                    simpleDomainValues(board, result);
                 }
                 break;
             case 2:
-                mrvForwardChecking(board, constraints, result);
-                simpleDomainValues(board, constraints, result);
+                mrvForwardChecking(board, result);
+                simpleDomainValues(board, result);
                 break;
+            case 3:
+                mrvForwardCheckingDegree(board, result);
         }
 
         return result;
     }
 
-    private static void simpleDomainValues(int[][] board, int[][] constraints, Object[] result) {
+    private static void simpleDomainValues(int[][] board, Object[] result) {
         final ArrayList<Integer> listOfValidValues = new ArrayList<>();
 
         int row = (int) result[0];
@@ -326,35 +377,18 @@ public class FutoshikiSolver {
 
         for (int value = dimension; value >= 1; value--) {
             if (((1 << value) | validValues) != validValues) {
-                board[row][column] = value;
-                if (!breakConstraint(board, constraints)) {
+                if (!breakConstraint(board, row, column, value)) {
                     listOfValidValues.add(value);
                 }
-                board[row][column] = 0;
             }
         }
 
         result[2] = listOfValidValues;
     }
 
-
-    private static int getDegree(final int[][] board, int[][] constraints, int row, int column) {
-        int validValues = board[dimension][row] | board[dimension + 1][column];
-        int breakConstraint = 0;
-
-        for (int value = dimension; value >= 1; value--) {
-            if (((1 << value) | validValues) != validValues) {
-                board[row][column] = value;
-                if (breakConstraint(board, constraints)) {
-                    breakConstraint++;
-                }
-                board[row][column] = 0;
-            }
-        }
-
-        return breakConstraint;
+    private static int getDegree(final int[][] board, int row, int column) {
+        return constraints.getOrDefault((row + "" + column), new ArrayList<>()).size();
     }
-
 
     private static int getValidValues(int n) {
         //remove the first bit, because it always be zero
@@ -369,6 +403,5 @@ public class FutoshikiSolver {
 
         return dimension - count;
     }
-
 
 }
