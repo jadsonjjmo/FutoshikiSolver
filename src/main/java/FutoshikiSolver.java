@@ -274,7 +274,7 @@ public class FutoshikiSolver {
     }
 
     private static void mrvForwardChecking(int[][] board, Object[] result) {
-        int minValidValues = 0;
+        int minValidValues = Integer.MAX_VALUE;
 
         for (int i = 0; i < dimension; i++) {
             for (int j = 0; j < dimension; j++) {
@@ -290,7 +290,7 @@ public class FutoshikiSolver {
 
                     final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
 
-                    if (validValues > minValidValues) {
+                    if (validValues < minValidValues) {
                         minValidValues = validValues;
                         result[0] = i;
                         result[1] = j;
