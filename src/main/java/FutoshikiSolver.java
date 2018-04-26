@@ -39,9 +39,15 @@ public class FutoshikiSolver {
 
         stringBuilder.append("test,heuristicType,dimension,constraints,operations,checkMrv,solutionFound,second\n");
 
+        double totalTotalTime = 0;
+        int totalAttributions = 0;
+        int correctTests = 0;
+
         final int quantityOfTests = Integer.parseInt(bufferedReader.readLine());
 
         for (int i = 0; i < quantityOfTests; i++) {
+
+            //System.out.println(i+1);
 
             StringTokenizer stringTokenizer = new StringTokenizer(bufferedReader.readLine());
             dimension = Integer.parseInt(stringTokenizer.nextToken());
@@ -87,11 +93,11 @@ public class FutoshikiSolver {
 
             int result[][] = null;
 
-            for (int h = 3; h <= 3; h++) {
+            for (int h = 1; h <= 1; h++) {
 
                 heuristicType = h;
                 double totalTime = 0;
-                int iterations = 5;
+                int iterations = 1;
 
                 for (int iter = 0; iter < iterations; iter++) {
 
@@ -123,14 +129,23 @@ public class FutoshikiSolver {
                     totalTime += (endTime - initialTime);
                 }
 
+                totalTotalTime += ((totalTime / iterations) / 1000);
+                totalAttributions += breakPoint;
+                correctTests += (result != null) ? 1 : 0;
+/*
                 stringBuilder.append(i + 1).append(",").append(heuristicType).append(",")
                         .append(dimension).append(",").append(quantityOfConstraints).append(",").append(breakPoint)
                         .append(",").append(breakPoint == quantityOfEmptyVariables).append(",").append(result != null).append(",").append((totalTime / iterations) / 1000).append("\n");
+            */
             }
             if (i + 1 < quantityOfTests) {
                 bufferedReader.readLine();
             }
         }
+
+        System.out.println("Total time: "+totalTotalTime);
+        System.out.println("Correct tests: "+correctTests+" of "+quantityOfTests);
+        System.out.println("Total attributions: "+totalAttributions);
 
         bufferedWriter.write(stringBuilder.toString());
         bufferedWriter.flush();
@@ -321,10 +336,13 @@ public class FutoshikiSolver {
 
                     final int validValues = getValidValues02(board, i, j, board[dimension][i] | board[dimension + 1][j]);
 
-                    if (validValues < minValidValues) {
+                    if (validValues <= minValidValues) {
                         minValidValues = validValues;
                         result[0] = i;
                         result[1] = j;
+                        if(minValidValues == 1){
+                            return;
+                        }
                     }
                 }
 
@@ -382,11 +400,11 @@ public class FutoshikiSolver {
                 forwardChecking(board, result);
                 break;
             case 2:
-                mrvForwardChecking(board, result);
+                mrvForwardChecking02(board, result);
                 simpleDomainValues(board, result);
                 break;
             case 3:
-                mrvForwardChecking02(board, result);
+                mrvForwardChecking(board, result);
                 simpleDomainValues(board, result);
                 break;
             case 4:
@@ -439,6 +457,8 @@ public class FutoshikiSolver {
         //remove the first bit, because it always be zero
         int count = 0;
 
+        n >>>= 1;
+
         for (int i = 1; i <= dimension; i++) {
 
             if (n % 2 == 0) {
@@ -446,6 +466,8 @@ public class FutoshikiSolver {
                     count++;
                 }
             }
+
+            n /= 2;
 
         }
 
