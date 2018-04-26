@@ -18,6 +18,8 @@ public class FutoshikiSolver {
 
     public static void main(String[] args) throws IOException {
 
+        //System.setOut(new PrintStream("output.out"));
+
         final String inputPath;
         final String outputPath;
         int heuristicType = 0;
@@ -35,13 +37,11 @@ public class FutoshikiSolver {
             System.exit(-1);
         }
 
-        stringBuilder.append("test,heuristicType,dimension,constraints,operations,solutionFound,second\n");
-
+        stringBuilder.append("test,heuristicType,dimension,constraints,operations,checkMrv,solutionFound,second\n");
 
         final int quantityOfTests = Integer.parseInt(bufferedReader.readLine());
 
         for (int i = 0; i < quantityOfTests; i++) {
-
 
             StringTokenizer stringTokenizer = new StringTokenizer(bufferedReader.readLine());
             dimension = Integer.parseInt(stringTokenizer.nextToken());
@@ -65,6 +65,8 @@ public class FutoshikiSolver {
                 constraints.put(l2 + c2, list2);
             }
 
+            int quantityOfEmptyVariables = 0;
+
             for (int j = 0; j < dimension; j++) {
                 stringTokenizer = new StringTokenizer(bufferedReader.readLine());
                 for (int k = 0; k < dimension; k++) {
@@ -77,14 +79,15 @@ public class FutoshikiSolver {
                         board[dimension][j] |= (1 << value);
                         //dimension + 1 = column
                         board[dimension + 1][k] |= (1 << value);
+                    } else{
+                        quantityOfEmptyVariables ++;
                     }
                 }
             }
 
-
             int result[][] = null;
 
-            for (int h = 0; h <= 3; h++) {
+            for (int h = 3; h <= 3; h++) {
 
                 heuristicType = h;
                 double totalTime = 0;
@@ -103,7 +106,7 @@ public class FutoshikiSolver {
 
                     final double initialTime = System.currentTimeMillis();
 
-                    breakPoint = 1;
+                    breakPoint = 0;
                     result = backtrackingSearch(heuristicType, tempBoard);
 
                     if (getSolution) {
@@ -122,8 +125,7 @@ public class FutoshikiSolver {
 
                 stringBuilder.append(i + 1).append(",").append(heuristicType).append(",")
                         .append(dimension).append(",").append(quantityOfConstraints).append(",").append(breakPoint)
-                        .append(",").append(result != null).append(",").append((totalTime / 1000) / iterations).append("\n");
-
+                        .append(",").append(breakPoint == quantityOfEmptyVariables).append(",").append(result != null).append(",").append((totalTime / iterations) / 1000).append("\n");
             }
             if (i + 1 < quantityOfTests) {
                 bufferedReader.readLine();
@@ -140,11 +142,6 @@ public class FutoshikiSolver {
     }
 
     private static int[][] recursiveBacktracking(int[][] board, int heuristicType) {
-
-        if (breakPoint++ > 1e6) {
-            return null;
-        }
-
         if (isSolution(board)) {
             return board;
         }
@@ -156,21 +153,26 @@ public class FutoshikiSolver {
         final ArrayList<Integer> orderDomainValues = (ArrayList<Integer>) variableAndOrderDomainValues[2];
 
         for (final int value : orderDomainValues) {
-            board[row][column] = value;
-            //Set the bit represented by value as used in column and row
-            board[dimension][row] |= (1 << value);
-            board[dimension + 1][column] |= (1 << value);
-            final int[][] result = recursiveBacktracking(board, heuristicType);
+            if (breakPoint < 1e6) {
+                breakPoint++;
+                board[row][column] = value;
+                //Set the bit represented by value as used in column and row
+                board[dimension][row] |= (1 << value);
+                board[dimension + 1][column] |= (1 << value);
+                final int[][] result = recursiveBacktracking(board, heuristicType);
 
-            if (result != null) {
-                return result;
+                if (result != null) {
+                    return result;
+                }
+
+                //Unset the bit represented by value as used in column and row
+                board[dimension][row] ^= (1 << value);
+                board[dimension + 1][column] ^= (1 << value);
+
+                board[row][column] = 0;
+            } else {
+                break;
             }
-
-            //Unset the bit represented by value as used in column and row
-            board[dimension][row] ^= (1 << value);
-            board[dimension + 1][column] ^= (1 << value);
-
-            board[row][column] = 0;
         }
 
         return null;
@@ -225,14 +227,18 @@ public class FutoshikiSolver {
     private static void printBoard(int[][] board) {
 
         if (board == null) {
+            System.out.println("No solution found!");
             stringBuilder.append("No solution found!\n");
         } else {
             for (int i = 0; i < dimension; i++) {
                 for (int j = 0; j < dimension; j++) {
+                    System.out.print(board[i][j]);
                     stringBuilder.append(board[i][j]);
                     if (j + 1 < dimension) {
+                        System.out.print(" ");
                         stringBuilder.append(" ");
                     } else {
+                        System.out.println();
                         stringBuilder.append("\n");
                     }
                 }
@@ -254,13 +260,14 @@ public class FutoshikiSolver {
     }
 
     private static boolean forwardChecking(int[][] board, Object[] result) {
-
         for (int i = 0; i < dimension; i++) {
             for (int j = 0; j < dimension; j++) {
 
                 if (board[i][j] == 0) {
 
-                    if ((board[dimension][i] | board[dimension + 1][j]) == (1 << dimension + 1) - 1) {
+                    if ((board[dimension][i] | board[dimension + 1][j]) == (1 << (dimension + 1)) - 2) {
+                        result[0] = i;
+                        result[1] = j;
                         result[2] = new ArrayList<>();
                         return false;
                     }
@@ -269,7 +276,6 @@ public class FutoshikiSolver {
 
             }
         }
-
         return true;
     }
 
@@ -281,10 +287,7 @@ public class FutoshikiSolver {
 
                 if (board[i][j] == 0) {
                     //Forward checking
-                    if ((board[dimension][i] | board[dimension + 1][j]) == ((1 << dimension + 1) - 1)) {
-                        result[0] = i;
-                        result[1] = j;
-                        result[2] = new ArrayList<>();
+                    if (!forwardChecking(board, result)) {
                         return;
                     }
 
@@ -304,7 +307,32 @@ public class FutoshikiSolver {
         }
     }
 
-    private static void mrvForwardCheckingDegree(int[][] board, Object[] result) {
+    private static void mrvForwardChecking02(int[][] board, Object[] result) {
+        int minValidValues = Integer.MAX_VALUE;
+
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
+
+                if (board[i][j] == 0) {
+                    //Forward checking
+                    if (!forwardChecking(board, result)) {
+                        return;
+                    }
+
+                    final int validValues = getValidValues02(board, i, j, board[dimension][i] | board[dimension + 1][j]);
+
+                    if (validValues < minValidValues) {
+                        minValidValues = validValues;
+                        result[0] = i;
+                        result[1] = j;
+                    }
+                }
+
+            }
+        }
+    }
+
+    private static void mrvForwardCheckingDegree02(int[][] board, Object[] result) {
         int minValidValues = Integer.MAX_VALUE;
         int maxDegree = 0;
 
@@ -313,14 +341,11 @@ public class FutoshikiSolver {
 
                 if (board[i][j] == 0) {
                     //Forward checking
-                    if ((board[dimension][i] | board[dimension + 1][j]) == ((1 << dimension + 1) - 1)) {
-                        result[0] = i;
-                        result[1] = j;
-                        result[2] = new ArrayList<>();
+                    if (!forwardChecking(board, result)) {
                         return;
                     }
 
-                    final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
+                    final int validValues = getValidValues02(board, i, j, board[dimension][i] | board[dimension + 1][j]);
 
                     if (validValues < minValidValues) {
                         minValidValues = validValues;
@@ -353,16 +378,19 @@ public class FutoshikiSolver {
                 break;
             case 1:
                 simpleUnassignedVariable(board, result);
-                if (forwardChecking(board, result)) {
-                    simpleDomainValues(board, result);
-                }
+                simpleDomainValues(board, result);
+                forwardChecking(board, result);
                 break;
             case 2:
                 mrvForwardChecking(board, result);
                 simpleDomainValues(board, result);
                 break;
             case 3:
-                mrvForwardCheckingDegree(board, result);
+                mrvForwardChecking02(board, result);
+                simpleDomainValues(board, result);
+                break;
+            case 4:
+                mrvForwardCheckingDegree02(board, result);
                 simpleDomainValues(board, result);
                 break;
         }
@@ -405,6 +433,23 @@ public class FutoshikiSolver {
         }
 
         return dimension - count;
+    }
+
+    private static int getValidValues02(int[][] board, int row, int column, int n) {
+        //remove the first bit, because it always be zero
+        int count = 0;
+
+        for (int i = 1; i <= dimension; i++) {
+
+            if (n % 2 == 0) {
+                if (!breakConstraint(board, row, column, i)) {
+                    count++;
+                }
+            }
+
+        }
+
+        return count;
     }
 
 }
