@@ -248,7 +248,7 @@ public class FutoshikiSolver {
                         return;
                     }
 
-                    final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
+                    final int validValues = getValidValues02(board, i, j, board[dimension][i] | board[dimension + 1][j]);
 
                     if (validValues < minValidValues) {
                         minValidValues = validValues;
@@ -283,12 +283,15 @@ public class FutoshikiSolver {
                         return;
                     }
 
-                    final int validValues = getValidValues02(board, i, j, board[dimension][i] | board[dimension + 1][j]);
+                    final int validValues = getValidValues(board[dimension][i] | board[dimension + 1][j]);
 
                     if (validValues < minValidValues) {
                         minValidValues = validValues;
                         result[0] = i;
                         result[1] = j;
+                        if (minValidValues == 1) {
+                            return;
+                        }
                     }
                 }
 
@@ -465,9 +468,10 @@ public class FutoshikiSolver {
      * @param n      The or bit operation between the row and column
      * @return The quantity of valid values respecting all constraints
      */
-    private static int getValidValues02(final int[][] board, final int row, final int column, final int n) {
+    private static int getValidValues02(final int[][] board, final int row, final int column, int n) {
         //remove the first bit, because it always be zero (1<<1 = 00010 for a 4x4 board)
         int count = 0;
+        n >>>= 1;
 
         for (int i = 1; i <= dimension; i++) {
 
@@ -476,6 +480,8 @@ public class FutoshikiSolver {
                     count++;
                 }
             }
+
+            n /= 2;
 
         }
 
