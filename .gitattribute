@@ -1,1 +1,1 @@
-*.tex linguist-detectable=false
+latex/* linguist-vendored
