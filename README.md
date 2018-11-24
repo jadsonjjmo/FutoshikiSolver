@@ -1,5 +1,8 @@
 # FutoshikiSolver
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/139798ad186d47ef89710a1606826e65)](https://www.codacy.com/app/jadsonjjmo/FutoshikiSolver?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jadsonjjmo/FutoshikiSolver&amp;utm_campaign=Badge_Grade)
+
 This project consists of a tool that uses a backtracking approach to solve Futoshiki,
 which is a board game whose purpose is to fill all board fields with numbers, such that no digit is repeated in a row or column,
 respecting some restrictions imposed, which inform if a certain board field number should be smaller or larger than another adjacent board field number.
