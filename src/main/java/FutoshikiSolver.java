@@ -177,6 +177,9 @@ public class FutoshikiSolver {
                 mrvForwardCheckingDegree02(board, result);
                 simpleDomainValues(board, result);
                 break;
+            default:
+                System.err.println("Heuristic does not exist!");
+                break;
         }
 
         return result;

@@ -77,11 +77,13 @@ variable (higher amount of restrictions), the higher your priority in choosing.
 ## Experimental results
 
 Several experiments were executed with the purpose of answering the following questions:
-* Is the implementation of BT + MRV 1 + FC correct?
-* Taking into account the execution time and the number 
+*  Is the implementation of BT + MRV 1 + FC correct?
+
+*  Taking into account the execution time and the number 
 of allocations for each algorithm, what is the cost/benefit of using heuristics 
 to perform pruning in the tree of possibilities?
-* Is the amount of assignments needed to solve the problem influenced by the 
+
+*  Is the amount of assignments needed to solve the problem influenced by the 
 amount of problem constraints?
 
 The results can be found in this [Report file](/latex/futoshiki_report.pdf).
