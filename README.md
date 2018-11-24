@@ -42,7 +42,7 @@ array **N + 2** x **N**, where the row **N + 1** sets of bits,
 each representing the values ​​used in each row and the row **N + 2** of the array, 
 also composed of **N** sets of bits, representing the values ​​used in each column.
 
-![alt text](/latex/images/bitmask.pdf "Auxiliary structure working with bits for retrieval of valid values in the row and column.")
+![alt text](/latex/images/bitmask.png "Auxiliary structure working with bits for retrieval of valid values in the row and column.")
 
 The figure above pictures the process of verifying valid values for a specific variable, 
 where the red square is the variable that we want to know which values have not yet been used in any row or column, 
