@@ -430,7 +430,7 @@ public class FutoshikiSolver {
      *
      * @param row    The row of the variable to be analysed.
      * @param column The column of the variable to be analysed.
-     * @return
+     * @return The corresponding degree.
      */
     private static int getDegree(final int row, final int column) {
         return constraints.getOrDefault((row + "" + column), new ArrayList<>()).size();
